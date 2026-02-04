@@ -1,17 +1,22 @@
+import importlib.util
 import os
 import sys
 
 from mangum import Mangum
 
 
-# Ensure the backend package is on the path when running in Vercel
 CURRENT_DIR = os.path.dirname(__file__)
-BACKEND_PATH = os.path.join(CURRENT_DIR, "..", "backend", "api")
-sys.path.append(BACKEND_PATH)
+BACKEND_DIR = os.path.join(CURRENT_DIR, "..", "backend")
+BACKEND_API_DIR = os.path.join(BACKEND_DIR, "api")
 
-# Import the FastAPI app defined in backend/api/api.py
-from api import app  # type: ignore
+# Make backend modules importable (analyze.py depends on backend/*.py)
+sys.path.insert(0, BACKEND_API_DIR)
+sys.path.insert(0, BACKEND_DIR)
 
+api_path = os.path.join(BACKEND_API_DIR, "api.py")
+spec = importlib.util.spec_from_file_location("backend_api", api_path)
+backend_api = importlib.util.module_from_spec(spec)  # type: ignore[arg-type]
+assert spec and spec.loader
+spec.loader.exec_module(backend_api)
 
-# AWS/Lambda style handler Vercel uses for Python serverless functions
-handler = Mangum(app)
+handler = Mangum(backend_api.app)
